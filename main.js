@@ -9,6 +9,7 @@ var catalog = [];
 var lookAt = new THREE.Vector3(0, 0, -1);
 var slerp = null;
 var lastRender = 0;
+var focalLen;
 
 // pre-allocate some structs for calculations
 var proj = new THREE.Projector();
@@ -18,7 +19,7 @@ init();
 
 function init() {
     cam = new THREE.PerspectiveCamera(27, window.innerWidth / window.innerHeight, 0.1, 1000);
-    cam.setLens(35);
+    setFocalLen(35);
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
@@ -39,6 +40,17 @@ function init() {
     stepFrame();
 }
 
+function clamp(val, min, max) {
+    if (val <= min) { return min; }
+    if (val >= max) { return max; }
+    return val;
+}
+
+function setFocalLen(val) {
+    focalLen = val;
+    cam.setLens(val);
+}
+
 function loadCatalog() {
     $.getJSON('cat.json', function(data) {
         catalog = data.catalog;
@@ -55,9 +67,7 @@ function loadCatalog() {
             var z = Math.cos(decl) * -Math.cos(rasc);
             star.push(x, y, z);
  
-            var size = Math.round(star[1] * 2 - 2);
-            if (size < 0) { size = 0; }
-            else if (size >= 6) { size = 4; }
+            var size = clamp(Math.round(star[1] * 2 - 2), 0, 5);
             geos[size].vertices.push(new THREE.Vector3(x, y, z));
         }
         for (var i = 0; i < 6; i++) {
@@ -77,8 +87,9 @@ function stepFrame() {
             elapsed = 1;
         }
         var progress = (1 - Math.cos(elapsed * Math.PI)) * 0.5;
+        setFocalLen(slerp.oldFocalLen * Math.exp(progress * slerp.logFocalLenRatio));
         quat.setFromAxisAngle(slerp.axis, progress * slerp.theta);
-        cam.up = slerp.up.clone().applyQuaternion(quat);
+        cam.up = slerp.oldUp.clone().applyQuaternion(quat);
         lookAt = slerp.lookAt.clone().applyQuaternion(quat);
         cam.lookAt(lookAt);
         if (elapsed === 1) {
@@ -115,10 +126,13 @@ function handleClick(event) {
     var axis = (new THREE.Vector3()).crossVectors(lookAt, clickAt);
     var theta = Math.asin(axis.length() / clickAt.length());
     axis.normalize();
+    var newFocalLen = clamp(35 * Math.pow(1.2, target.star[1] - 1), 35, 70);
     slerp = {
         axis: axis,
         startTime: (new Date()).getTime(),
         theta: theta,
         lookAt: lookAt,
-        up: cam.up.clone() };
+        oldUp: cam.up.clone(),
+        oldFocalLen: focalLen,
+        logFocalLenRatio: Math.log(newFocalLen / focalLen) };
 }
