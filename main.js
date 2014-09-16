@@ -126,7 +126,7 @@ function handleClick(event) {
     var axis = (new THREE.Vector3()).crossVectors(lookAt, clickAt);
     var theta = Math.asin(axis.length() / clickAt.length());
     axis.normalize();
-    var newFocalLen = clamp(35 * Math.pow(1.2, target.star[1] - 1), 35, 70);
+    var newFocalLen = clamp(24 * Math.pow(1.3, target.star[1] - 1), 24, 105);
     slerp = {
         axis: axis,
         startTime: (new Date()).getTime(),
