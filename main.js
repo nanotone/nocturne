@@ -1,6 +1,6 @@
 // threejs machinery
-var scene = new THREE.Scene();
 var renderer = new THREE.WebGLRenderer();
+var scene = new THREE.Scene();
 var cam;
 var sprite;
 
@@ -10,6 +10,8 @@ var lookAt = new THREE.Vector3(0, 0, -1);
 var slerp = null;
 var lastRender = 0;
 var focalLen;
+var paths = [];
+var currentPath = null;
 
 // pre-allocate some structs for calculations
 var proj = new THREE.Projector();
@@ -18,9 +20,10 @@ var quat = new THREE.Quaternion();
 init();
 
 function init() {
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
     cam = new THREE.PerspectiveCamera(27, window.innerWidth / window.innerHeight, 0.1, 1000);
     setFocalLen(35);
-    renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
     var canvas = document.createElement('canvas');
@@ -92,8 +95,14 @@ function stepFrame() {
         cam.up = slerp.oldUp.clone().applyQuaternion(quat);
         lookAt = slerp.lookAt.clone().applyQuaternion(quat);
         cam.lookAt(lookAt);
+        if (currentPath) {
+            currentPath.geometry.vertices[1] = lookAt;
+            currentPath.geometry.verticesNeedUpdate = true;
+        }
         if (elapsed === 1) {
             slerp = null;
+            paths.push(currentPath);
+            currentPath = null;
         }
         lastRender = 0;  // we are mid-animation; force a re-render
     }
@@ -121,12 +130,20 @@ function handleClick(event) {
     if (!target.star || target.dist > 0.02) {
         return;
     }
+    clickAt = new THREE.Vector3(target.star[5], target.star[6], target.star[7]);
     $('#announce').text(target.star[0]);
 
     var axis = (new THREE.Vector3()).crossVectors(lookAt, clickAt);
     var theta = Math.asin(axis.length() / clickAt.length());
     axis.normalize();
+
     var newFocalLen = clamp(24 * Math.pow(1.3, target.star[1] - 1), 24, 105);
+
+    var lineGeo = new THREE.Geometry();
+    lineGeo.vertices.push(lookAt.clone(), lookAt.clone());
+    currentPath = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({color: 0x404040}));
+    currentPath.frustumCulled = false;
+    scene.add(currentPath);
     slerp = {
         axis: axis,
         startTime: (new Date()).getTime(),
