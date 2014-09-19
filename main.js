@@ -6,12 +6,11 @@ var sprite;
 
 // view state
 var catalog = [];
-var lookAt = new THREE.Vector3(0, 0, -1);
+var lookAt;
 var slerp = null;
 var lastRender = 0;
 var focalLen;
 var paths = [];
-var currentPath = null;
 
 // pre-allocate some structs for calculations
 var proj = new THREE.Projector();
@@ -25,6 +24,11 @@ function init() {
     cam = new THREE.PerspectiveCamera(27, window.innerWidth / window.innerHeight, 0.1, 1000);
     setFocalLen(35);
     document.body.appendChild(renderer.domElement);
+
+    var randQuat = randQuaternion();
+    cam.up.applyQuaternion(randQuat);
+    lookAt = (new THREE.Vector3(0, 0, -1)).applyQuaternion(randQuat);
+    cam.lookAt(lookAt);
 
     var canvas = document.createElement('canvas');
     canvas.width = 32;
@@ -76,10 +80,19 @@ function loadCatalog() {
         for (var i = 0; i < 6; i++) {
             var mat = new THREE.PointCloudMaterial({size: 8 - i, sizeAttenuation: false, map: sprite, transparent: true});
             var cloud = new THREE.PointCloud(geos[i], mat);
+            cloud.matrixAutoUpdate = false;
             cloud.sortParticles = false;
             scene.add(cloud);
         }
     });
+}
+
+function randQuaternion() {
+    // see http://planning.cs.uiuc.edu/node198.html
+    var u1 = Math.random(), u2 = Math.random(), u3 = Math.random();
+    var a = Math.sqrt(1 - u1), b = Math.sqrt(u1);
+    var c = 2 * Math.PI * u2,  d = 2 * Math.PI * u3;
+    return new THREE.Quaternion(a * Math.cos(c), b * Math.sin(d), b * Math.cos(d), a * Math.sin(c));
 }
 
 function stepFrame() {
@@ -95,14 +108,11 @@ function stepFrame() {
         cam.up = slerp.oldUp.clone().applyQuaternion(quat);
         lookAt = slerp.lookAt.clone().applyQuaternion(quat);
         cam.lookAt(lookAt);
-        if (currentPath) {
-            currentPath.geometry.vertices[1] = lookAt;
-            currentPath.geometry.verticesNeedUpdate = true;
-        }
+        slerp.path.geometry.vertices[1] = lookAt;
+        slerp.path.geometry.verticesNeedUpdate = true;
         if (elapsed === 1) {
+            paths.push(slerp.path);
             slerp = null;
-            paths.push(currentPath);
-            currentPath = null;
         }
         lastRender = 0;  // we are mid-animation; force a re-render
     }
@@ -141,9 +151,10 @@ function handleClick(event) {
 
     var lineGeo = new THREE.Geometry();
     lineGeo.vertices.push(lookAt.clone(), lookAt.clone());
-    currentPath = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({color: 0x404040}));
-    currentPath.frustumCulled = false;
-    scene.add(currentPath);
+    var path = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({color: 0x404040}));
+    path.frustumCulled = false;
+    path.matrixAutoUpdate = false;
+    scene.add(path);
     slerp = {
         axis: axis,
         startTime: (new Date()).getTime(),
@@ -151,5 +162,6 @@ function handleClick(event) {
         lookAt: lookAt,
         oldUp: cam.up.clone(),
         oldFocalLen: focalLen,
-        logFocalLenRatio: Math.log(newFocalLen / focalLen) };
+        logFocalLenRatio: Math.log(newFocalLen / focalLen),
+        path: path };
 }
