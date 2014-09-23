@@ -65,20 +65,42 @@ function loadCatalog() {
         for (var i = 0; i < 6; i++) {
             geos.push(new THREE.Geometry());
         }
+        var colors = [];
+        var idxFromBv = function(bv) { return clamp(Math.round(bv * 10 + 3), 0, 18); };
+        var interpColors = function(bv1, c1, bv2, c2) {
+            var idx1 = idxFromBv(bv1), idx2 = idxFromBv(bv2);
+            var range = idx2 - idx1;
+            for (var i = 0; i <= range; i++) {
+                colors[idx1 + i] = new THREE.Color(c1.r + i/range * (c2.r - c1.r),
+                                                   c1.g + i/range * (c2.g - c1.g),
+                                                   c1.b + i/range * (c2.b - c1.b) );
+            }
+        };
+        interpColors(-0.3, new THREE.Color(0.6, 0.8, 1.0), // Spica-ish
+                     -0.1, new THREE.Color(0.8, 1.0, 1.0)); // Achernar-ish
+        interpColors(-0.1, new THREE.Color(0.8, 1.0, 1.0),
+                     +0.2, new THREE.Color(1.0, 1.0, 1.0)); // Canopus-ish
+        interpColors(+0.2, new THREE.Color(1.0, 1.0, 1.0),
+                     +0.5, new THREE.Color(1.0, 1.0, 0.8));
+        interpColors(+0.5, new THREE.Color(1.0, 1.0, 0.8),
+                     +1.5, new THREE.Color(1.0, 0.8, 0.6)); // Betelgeuse-ish
         for (var i = 0; i < catalog.length; i++) {
             var star = catalog[i];
             var rasc = star[2] /  12 * Math.PI;
             var decl = star[3] / 180 * Math.PI;
+            var bv = star[5];
             var x = Math.cos(decl) * -Math.sin(rasc);
             var y = Math.sin(decl);
             var z = Math.cos(decl) * -Math.cos(rasc);
+            var color = star.pop();
             star.push(x, y, z);
  
             var size = clamp(Math.round(star[1] * 2 - 2), 0, 5);
             geos[size].vertices.push(new THREE.Vector3(x, y, z));
+            geos[size].colors.push(colors[idxFromBv(bv)]);
         }
         for (var i = 0; i < 6; i++) {
-            var mat = new THREE.PointCloudMaterial({size: 8 - i, sizeAttenuation: false, map: sprite, transparent: true});
+            var mat = new THREE.PointCloudMaterial({size: 8 - i, sizeAttenuation: false, map: sprite, transparent: true, vertexColors: THREE.VertexColors});
             var cloud = new THREE.PointCloud(geos[i], mat);
             cloud.matrixAutoUpdate = false;
             cloud.sortParticles = false;
