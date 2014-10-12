@@ -135,6 +135,13 @@ function stepFrame() {
         if (elapsed === 1) {
             paths.push(slerp.path);
             slerp = null;
+            if (paths.length > 60) {
+                scene.remove(paths.shift());
+            }
+            for (var i = paths.length - 1; i > 0; i--) {
+                paths[i].material.color = paths[i - 1].material.color;
+            }
+            paths[0].material.color = new THREE.Color((0x41 - paths.length) * 0x010101);
         }
         lastRender = 0;  // we are mid-animation; force a re-render
     }
