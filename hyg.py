@@ -2,7 +2,7 @@ import json
 import math
 import sys
 
-cat = []
+cat = {}
 for line in open('hygxyz.csv'):
     fields = line.strip().split(',')
     try:
@@ -15,7 +15,15 @@ for line in open('hygxyz.csv'):
             x = math.cos(decl) * -math.sin(rasc)
             y = math.sin(decl)
             z = math.cos(decl) * -math.cos(rasc)
-            cat.append([name, mag, x, y, z, dist, color])
+            if abs(x) > max(abs(y), abs(z)):
+                key = 'x%d' % int(x > 0)
+            elif abs(y) > max(abs(x), abs(z)):
+                key = 'y%d' % int(y > 0)
+            else:
+                key = 'z%d' % int(z > 0)
+            if key not in cat:
+                cat[key] = []
+            cat[key].append([name, mag, x, y, z, dist, color])
     except Exception:
         pass
-json.dump({'catalog': cat}, sys.stdout)
+json.dump(cat, sys.stdout)

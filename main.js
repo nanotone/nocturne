@@ -5,7 +5,7 @@ var cam;
 var sprite;
 
 // view state
-var catalog = [];
+var catalog = {};
 var lookAt;
 var slerp = null;
 var lastRender = 0;
@@ -16,6 +16,7 @@ var paths = [];
 var proj = new THREE.Projector();
 var quat = new THREE.Quaternion();
 
+var planes = ['x0', 'x1', 'y0', 'y1', 'z0', 'z1'];
 init();
 
 function init() {
@@ -60,8 +61,8 @@ function setFocalLen(val) {
 }
 
 function loadCatalog() {
-    $.getJSON('cat2.json', function(data) {
-        catalog = data.catalog;
+    $.getJSON('cat3.json', function(data) {
+        catalog = data;
         var geos = [];
         for (var i = 0; i < 6; i++) {
             geos.push(new THREE.Geometry());
@@ -85,17 +86,20 @@ function loadCatalog() {
                      +0.5, new THREE.Color(1.0, 1.0, 0.8));
         interpColors(+0.5, new THREE.Color(1.0, 1.0, 0.8),
                      +1.5, new THREE.Color(1.0, 0.8, 0.6)); // Betelgeuse-ish
-        for (var i = 0; i < catalog.length; i++) {
-            var star = catalog[i];
-            var x = star[2];
-            var y = star[3];
-            var z = star[4];
-            var bv = star[6];
-            var color = star.pop();
+        for (var i = 0; i < planes.length; i++) {
+            var cat = catalog[planes[i]];
+            for (var j = 0; j < cat.length; j++) {
+                var star = cat[j];
+                var x = star[2];
+                var y = star[3];
+                var z = star[4];
+                var bv = star[6];
+                var color = star.pop();
  
-            var size = clamp(Math.round(star[1] * 2 - 2), 0, 5);
-            geos[size].vertices.push(new THREE.Vector3(x, y, z));
-            geos[size].colors.push(colors[idxFromBv(bv)]);
+                var size = clamp(Math.round(star[1] * 2 - 2), 0, 5);
+                geos[size].vertices.push(new THREE.Vector3(x, y, z));
+                geos[size].colors.push(colors[idxFromBv(bv)]);
+            }
         }
         for (var i = 0; i < 6; i++) {
             var mat = new THREE.PointCloudMaterial({size: 8 - i, sizeAttenuation: false, map: sprite, transparent: true, vertexColors: THREE.VertexColors});
@@ -157,11 +161,15 @@ function handleClick(event) {
     proj.unprojectVector(clickAt, cam);
     clickAt.normalize();
     var target = {dist: 3, star: null}; 
-    for (var i = 0; i < catalog.length; i++) {
-        var star = catalog[i];
-        var dist = Math.abs(star[2] - clickAt.x) + Math.abs(star[3] - clickAt.y) + Math.abs(star[4] - clickAt.z);
-        if (dist < target.dist) {
-            target = {dist: dist, star: star};
+
+    for (var i = 0; i < planes.length; i++) {
+        var cat = catalog[planes[i]];
+        for (var j = 0; j < cat.length; j++) {
+            var star = cat[j];
+            var dist = Math.abs(star[2] - clickAt.x) + Math.abs(star[3] - clickAt.y) + Math.abs(star[4] - clickAt.z);
+            if (dist < target.dist) {
+                target = {dist: dist, star: star};
+            }
         }
     }
     if (!target.star || target.dist > 0.02) {
