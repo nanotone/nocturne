@@ -30,6 +30,7 @@ function init() {
     lookAt = (new THREE.Vector3(0, 0, -1)).applyQuaternion(randQuat);
     cam.lookAt(lookAt);
 
+    // draw the star disk
     var canvas = document.createElement('canvas');
     canvas.width = 32;
     canvas.height = 32;
@@ -59,7 +60,7 @@ function setFocalLen(val) {
 }
 
 function loadCatalog() {
-    $.getJSON('cat.json', function(data) {
+    $.getJSON('cat2.json', function(data) {
         catalog = data.catalog;
         var geos = [];
         for (var i = 0; i < 6; i++) {
@@ -86,14 +87,11 @@ function loadCatalog() {
                      +1.5, new THREE.Color(1.0, 0.8, 0.6)); // Betelgeuse-ish
         for (var i = 0; i < catalog.length; i++) {
             var star = catalog[i];
-            var rasc = star[2] /  12 * Math.PI;
-            var decl = star[3] / 180 * Math.PI;
-            var bv = star[5];
-            var x = Math.cos(decl) * -Math.sin(rasc);
-            var y = Math.sin(decl);
-            var z = Math.cos(decl) * -Math.cos(rasc);
+            var x = star[2];
+            var y = star[3];
+            var z = star[4];
+            var bv = star[6];
             var color = star.pop();
-            star.push(x, y, z);
  
             var size = clamp(Math.round(star[1] * 2 - 2), 0, 5);
             geos[size].vertices.push(new THREE.Vector3(x, y, z));
@@ -161,7 +159,7 @@ function handleClick(event) {
     var target = {dist: 3, star: null}; 
     for (var i = 0; i < catalog.length; i++) {
         var star = catalog[i];
-        var dist = Math.abs(star[5] - clickAt.x) + Math.abs(star[6] - clickAt.y) + Math.abs(star[7] - clickAt.z);
+        var dist = Math.abs(star[2] - clickAt.x) + Math.abs(star[3] - clickAt.y) + Math.abs(star[4] - clickAt.z);
         if (dist < target.dist) {
             target = {dist: dist, star: star};
         }
@@ -169,7 +167,7 @@ function handleClick(event) {
     if (!target.star || target.dist > 0.02) {
         return;
     }
-    clickAt = new THREE.Vector3(target.star[5], target.star[6], target.star[7]);
+    clickAt = new THREE.Vector3(target.star[2], target.star[3], target.star[4]);
     $('#announce').text(target.star[0]);
 
     var axis = (new THREE.Vector3()).crossVectors(lookAt, clickAt);
