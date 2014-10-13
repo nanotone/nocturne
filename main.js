@@ -59,9 +59,14 @@ function setFocalLen(val) {
     cam.setLens(val);
     for (var planeKey in planes) {
         var plane = planes[planeKey];
-        var attenuateRate = 150 / (focalLen + 50);
-        plane.cloud.material.size = 10 - attenuateRate * plane.mag;
+        plane.cloud.material.size = sizeFromMag(plane.mag);
     }
+}
+function sizeFromMag(mag) {
+    return 10 - 150 / (focalLen + 50) * mag;
+}
+function magFromSize(size) {
+    return (10 - size) * (focalLen + 50) / 150;
 }
 
 
@@ -91,7 +96,7 @@ interpColors(+0.5, new THREE.Color(1.0, 1.0, 0.8),
 
 var planes = {};
 function loadCatalog() {
-    $.getJSON('cat4.json', function(data) {
+    $.getJSON('cat5.json', function(data) {
         catalog = data;
         for (var planeKey in catalog) {
             if (!catalog.hasOwnProperty(planeKey)) { continue; }
@@ -110,7 +115,7 @@ function loadCatalog() {
             cloud.matrixAutoUpdate = false;
             cloud.sortParticles = false;
             scene.add(cloud);
-            planes[planeKey] = {cloud: cloud, mag: mag};
+            planes[planeKey] = {cloud: cloud, mag: mag, visible: true};
         }
     });
 }
@@ -136,6 +141,20 @@ function stepFrame() {
         cam.up = slerp.oldUp.clone().applyQuaternion(quat);
         lookAt = slerp.lookAt.clone().applyQuaternion(quat);
         cam.lookAt(lookAt);
+
+        var magThresh = magFromSize(2);
+        for (var planeKey in planes) {
+            var plane = planes[planeKey];
+            if (plane.mag < magThresh && !plane.visible) {
+                plane.visible = true;
+                scene.add(plane.cloud);
+            }
+            else if (plane.mag > magThresh && plane.visible) {
+                plane.visible = false;
+                scene.remove(plane.cloud);
+            }
+        }
+
         slerp.path.geometry.vertices[1] = lookAt;
         slerp.path.geometry.verticesNeedUpdate = true;
         if (elapsed === 1) {
