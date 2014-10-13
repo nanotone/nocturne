@@ -16,7 +16,6 @@ var paths = [];
 var proj = new THREE.Projector();
 var quat = new THREE.Quaternion();
 
-var planes = ['x0', 'x1', 'y0', 'y1', 'z0', 'z1'];
 init();
 
 function init() {
@@ -58,55 +57,60 @@ function clamp(val, min, max) {
 function setFocalLen(val) {
     focalLen = val;
     cam.setLens(val);
+    for (var planeKey in planes) {
+        var plane = planes[planeKey];
+        var attenuateRate = 150 / (focalLen + 50);
+        plane.cloud.material.size = 10 - attenuateRate * plane.mag;
+    }
 }
 
+
+// star colors are palettized by an array created by interpolating representative stars
+function idxFromBv(bv) {
+    return clamp(Math.round(bv * 10 + 3), 0, 18);
+}
+var colors = [];
+function interpColors(bv1, c1, bv2, c2) {
+    var idx1 = idxFromBv(bv1), idx2 = idxFromBv(bv2);
+    var range = idx2 - idx1;
+    for (var i = 0; i <= range; i++) {
+        colors[idx1 + i] = new THREE.Color(c1.r + i/range * (c2.r - c1.r),
+                                           c1.g + i/range * (c2.g - c1.g),
+                                           c1.b + i/range * (c2.b - c1.b) );
+    }
+}
+interpColors(-0.3, new THREE.Color(0.6, 0.8, 1.0), // Spica-ish
+             -0.1, new THREE.Color(0.8, 1.0, 1.0)); // Achernar-ish
+interpColors(-0.1, new THREE.Color(0.8, 1.0, 1.0),
+             +0.2, new THREE.Color(1.0, 1.0, 1.0)); // Canopus-ish
+interpColors(+0.2, new THREE.Color(1.0, 1.0, 1.0),
+             +0.5, new THREE.Color(1.0, 1.0, 0.8));
+interpColors(+0.5, new THREE.Color(1.0, 1.0, 0.8),
+             +1.5, new THREE.Color(1.0, 0.8, 0.6)); // Betelgeuse-ish
+
+
+var planes = {};
 function loadCatalog() {
-    $.getJSON('cat3.json', function(data) {
+    $.getJSON('cat4.json', function(data) {
         catalog = data;
-        var geos = [];
-        for (var i = 0; i < 6; i++) {
-            geos.push(new THREE.Geometry());
-        }
-        var colors = [];
-        var idxFromBv = function(bv) { return clamp(Math.round(bv * 10 + 3), 0, 18); };
-        var interpColors = function(bv1, c1, bv2, c2) {
-            var idx1 = idxFromBv(bv1), idx2 = idxFromBv(bv2);
-            var range = idx2 - idx1;
-            for (var i = 0; i <= range; i++) {
-                colors[idx1 + i] = new THREE.Color(c1.r + i/range * (c2.r - c1.r),
-                                                   c1.g + i/range * (c2.g - c1.g),
-                                                   c1.b + i/range * (c2.b - c1.b) );
-            }
-        };
-        interpColors(-0.3, new THREE.Color(0.6, 0.8, 1.0), // Spica-ish
-                     -0.1, new THREE.Color(0.8, 1.0, 1.0)); // Achernar-ish
-        interpColors(-0.1, new THREE.Color(0.8, 1.0, 1.0),
-                     +0.2, new THREE.Color(1.0, 1.0, 1.0)); // Canopus-ish
-        interpColors(+0.2, new THREE.Color(1.0, 1.0, 1.0),
-                     +0.5, new THREE.Color(1.0, 1.0, 0.8));
-        interpColors(+0.5, new THREE.Color(1.0, 1.0, 0.8),
-                     +1.5, new THREE.Color(1.0, 0.8, 0.6)); // Betelgeuse-ish
-        for (var i = 0; i < planes.length; i++) {
-            var cat = catalog[planes[i]];
+        for (var planeKey in catalog) {
+            if (!catalog.hasOwnProperty(planeKey)) { continue; }
+            var cat = catalog[planeKey];
+            var geo = new THREE.Geometry();
             for (var j = 0; j < cat.length; j++) {
                 var star = cat[j];
-                var x = star[2];
-                var y = star[3];
-                var z = star[4];
                 var bv = star[6];
                 var color = star.pop();
- 
-                var size = clamp(Math.round(star[1] * 2 - 2), 0, 5);
-                geos[size].vertices.push(new THREE.Vector3(x, y, z));
-                geos[size].colors.push(colors[idxFromBv(bv)]);
+                geo.vertices.push(new THREE.Vector3(star[2], star[3], star[4]));
+                geo.colors.push(colors[idxFromBv(bv)]);
             }
-        }
-        for (var i = 0; i < 6; i++) {
-            var mat = new THREE.PointCloudMaterial({size: 8 - i, sizeAttenuation: false, map: sprite, transparent: true, vertexColors: THREE.VertexColors});
-            var cloud = new THREE.PointCloud(geos[i], mat);
+            var mag = Number(planeKey.substr(3));
+            var mat = new THREE.PointCloudMaterial({size: 10 - 2*mag, sizeAttenuation: false, map: sprite, transparent: true, vertexColors: THREE.VertexColors});
+            var cloud = new THREE.PointCloud(geo, mat);
             cloud.matrixAutoUpdate = false;
             cloud.sortParticles = false;
             scene.add(cloud);
+            planes[planeKey] = {cloud: cloud, mag: mag};
         }
     });
 }
@@ -162,8 +166,8 @@ function handleClick(event) {
     clickAt.normalize();
     var target = {dist: 3, star: null}; 
 
-    for (var i = 0; i < planes.length; i++) {
-        var cat = catalog[planes[i]];
+    for (var planeKey in catalog) {
+        var cat = catalog[planeKey];
         for (var j = 0; j < cat.length; j++) {
             var star = cat[j];
             var dist = Math.abs(star[2] - clickAt.x) + Math.abs(star[3] - clickAt.y) + Math.abs(star[4] - clickAt.z);

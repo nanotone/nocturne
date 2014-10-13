@@ -21,6 +21,7 @@ for line in open('hygxyz.csv'):
                 key = 'y%d' % int(y > 0)
             else:
                 key = 'z%d' % int(z > 0)
+            key = '%s-%d' % (key, max(int(mag), 0))
             if key not in cat:
                 cat[key] = []
             cat[key].append([name, mag, x, y, z, dist, color])
