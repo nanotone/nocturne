@@ -62,11 +62,15 @@ function setFocalLen(val) {
         plane.cloud.material.size = sizeFromMag(plane.mag);
     }
 }
+function sizeAttenuation() {
+    //return 110 / (focalLen + 35);
+    return 4.1 - Math.log(focalLen) / 1.5;
+}
 function sizeFromMag(mag) {
-    return 10 - 150 / (focalLen + 50) * mag;
+    return 10 - sizeAttenuation() * mag;
 }
 function magFromSize(size) {
-    return (10 - size) * (focalLen + 50) / 150;
+    return (10 - size) / sizeAttenuation();
 }
 
 
@@ -142,7 +146,7 @@ function stepFrame() {
         lookAt = slerp.lookAt.clone().applyQuaternion(quat);
         cam.lookAt(lookAt);
 
-        var magThresh = magFromSize(2);
+        var magThresh = magFromSize(1);
         for (var planeKey in planes) {
             var plane = planes[planeKey];
             if (plane.mag < magThresh && !plane.visible) {
