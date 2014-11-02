@@ -16,7 +16,7 @@ class SortedQuadTree(object):
             self.els.append(el)
             if len(self.els) > self.capacity:
                 self.subdivide()
-                pos = self.bisector(self.children) if self.bisector else self.capacity
+                pos = self.bisector(self.els) if self.bisector else self.capacity
                 for e in itertools.islice(self.els, pos, None):
                     self.add(e)
                 del self.els[pos:]
@@ -33,6 +33,12 @@ class SortedQuadTree(object):
                                    self.miny + (i / 2) * self.halfsize,
                                    self.halfsize, self.bisector)
             self.children.append(child)
+
+    def gen_nodes(self):
+        yield self
+        for child in self.children:
+            for node in child.gen_nodes():
+                yield node
 
 
 if __name__ == '__main__':
